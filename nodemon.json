@@ -1,0 +1,7 @@
+{
+  "watch": ["src"],
+  "ext": "js,json",
+  "ignore": ["logs/*", "public/*"],
+  "exec": "node src/server.js",
+  "verbose": true
+}

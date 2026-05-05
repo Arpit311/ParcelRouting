@@ -1,0 +1,9 @@
+[
+  {"weight": 5, "value": 500, "destinationCountry": "NL", "recipientName": "John Doe"},
+  {"weight": 15, "value": 2000, "destinationCountry": "DE", "recipientName": "Jane Smith"},
+  {"weight": 0.5, "value": 100, "destinationCountry": "FR", "recipientName": "Bob Johnson"},
+  {"weight": 50, "value": 5000, "destinationCountry": "BE", "recipientName": "Alice Brown"},
+  {"weight": 2, "value": 1500, "destinationCountry": "NL", "recipientName": "Charlie Wilson"},
+  {"weight": 8, "value": 300, "destinationCountry": "DE", "recipientName": "Diana Prince"},
+  {"weight": 12, "value": 1100, "destinationCountry": "FR", "recipientName": "Eve Martinez"}
+]

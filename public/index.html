@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parcel Routing System</title>
+  <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Parcel Routing System</h1>
+      <p class="subtitle">Intelligent parcel routing to departments based on weight and value</p>
+      <nav class="nav-links">
+        <a href="#singleParcelSection">Single Entry</a>
+        <a href="#batchParcelSection">Batch Entry</a>
+        <a href="#fileUploadSection">File Upload</a>
+        <a href="#ordersPlacedSection">Orders Summary</a>
+      </nav>
+    </header>
+
+    <!-- Rules Section -->
+    <div class="rules-section">
+      <h2>Routing Rules</h2>
+      <div id="rulesContainer" class="rules-grid">
+        <p style="padding: 20px;">Loading routing rules...</p>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="grid">
+      <!-- Single Parcel Routing -->
+      <div class="card" id="singleParcelSection">
+        <h2>Single Parcel Routing</h2>
+        <form id="singleParcelForm">
+          <div class="form-group">
+            <label for="weight">Weight (kg) *</label>
+            <input type="number" id="weight" name="weight" step="0.01" min="0" required>
+          </div>
+
+          <div class="form-group">
+            <label for="value">Value (€) *</label>
+            <input type="number" id="value" name="value" step="0.01" min="0" required>
+          </div>
+
+          <div class="form-group">
+            <label for="country">Destination Country</label>
+            <input type="text" id="country" name="country" placeholder="e.g., NL, DE, FR">
+          </div>
+
+          <div class="form-group">
+            <label for="recipient">Recipient Name</label>
+            <input type="text" id="recipient" name="recipient" placeholder="e.g., John Doe">
+          </div>
+
+          <button type="submit">Route Parcel</button>
+
+          <div id="singleResult" class="result-box">
+            <h3>Result</h3>
+            <div class="result-content" id="singleResultContent"></div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Orders Summary -->
+      <div class="card" id="ordersPlacedSection">
+        <h2>Orders Placed</h2>
+        <div class="stats-grid" id="statsContainer">
+          <div class="stat">
+            <div class="stat-value">—</div>
+            <div class="stat-label">Order Requests</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">—</div>
+            <div class="stat-label">Parcels Routed</div>
+          </div>
+        </div>
+
+        <div class="button-row">
+          <button id="resetSummaryBtn" class="secondary">
+            Reset Order Summary
+          </button>
+        </div>
+
+        <div id="orderResult" class="result-box">
+          <h3>Order Summary</h3>
+          <div class="result-content" id="orderResultContent"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Batch Routing -->
+    <div class="card" id="batchParcelSection" style="margin-bottom: 20px;">
+      <h2>Batch Parcel Routing</h2>
+      <form id="batchParcelForm">
+        <div style="margin-bottom: 15px;">
+          <p style="color: #666; font-size: 14px; margin-bottom: 10px;">
+            Enter parcel data (one per line): weight,value,country,name
+          </p>
+          <textarea id="batchData" rows="8" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 13px;" placeholder="5,100,NL,John Doe&#10;10,500,DE,Jane Smith&#10;15,2000,FR,Bob Johnson"></textarea>
+        </div>
+
+        <button type="submit">Process Batch</button>
+
+        <div id="batchResult" class="result-box">
+          <h3>Batch Results</h3>
+          <div class="result-content" id="batchResultContent"></div>
+        </div>
+      </form>
+    </div>
+
+    <div class="card" id="fileUploadSection" style="margin-bottom: 20px;">
+      <h2>Upload Batch File</h2>
+      <form id="fileUploadForm">
+        <div style="margin-bottom: 15px;">
+          <label for="uploadFormat">Format</label>
+          <select id="uploadFormat" style="margin-left: 8px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <option value="xml">XML</option>
+            <option value="json">JSON</option>
+          </select>
+        </div>
+        <div style="margin-bottom: 15px;">
+          <input id="uploadFile" type="file" accept=".xml,.json" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" />
+        </div>
+        <button type="submit">Upload File</button>
+
+        <div id="uploadResult" class="result-box">
+          <h3>Upload Result</h3>
+          <div class="result-content" id="uploadResultContent"></div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = '/api';
+
+    /**
+     * Load and display available routing rules
+     */
+    async function loadRules() {
+      try {
+        const response = await fetch(`${API_URL}/rules`);
+        const data = await response.json();
+
+        if (data.success && data.rules) {
+          const rulesContainer = document.getElementById('rulesContainer');
+          rulesContainer.innerHTML = data.rules.map(rule => `
+            <div class="rule-card">
+              <h4>${rule.name}</h4>
+              <p>${rule.description}</p>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span class="rule-priority">Priority: ${rule.priority}</span>
+              </div>
+            </div>
+          `).join('');
+        }
+      } catch (error) {
+        console.error('Failed to load rules:', error);
+      }
+    }
+
+    /**
+     * Load order summary information
+     */
+    async function loadOrderSummary() {
+      try {
+        const response = await fetch(`${API_URL}/orders-summary`);
+        const data = await response.json();
+
+        const statsContainer = document.getElementById('statsContainer');
+        const orderResult = document.getElementById('orderResult');
+        const orderResultContent = document.getElementById('orderResultContent');
+
+        if (data.success) {
+          statsContainer.innerHTML = `
+            <div class="stat">
+              <div class="stat-value">${data.summary.totalRequests}</div>
+              <div class="stat-label">Order Requests</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">${data.summary.totalParcels}</div>
+              <div class="stat-label">Parcels Routed</div>
+            </div>
+          `;
+
+          const lastActivity = data.summary.lastParcel || data.summary.lastBatch;
+          const detailLabel = data.summary.lastParcel ? 'Last Parcel Routed' : 'Last Batch Routed';
+
+          const formatDepartmentCounts = (counts) => {
+            if (!counts || Object.keys(counts).length === 0) {
+              return '<em>No department routing data available.</em>';
+            }
+            return `
+              <ul style="margin: 0; padding-left: 18px;">
+                ${Object.entries(counts)
+                  .map(([dept, count]) => `<li>${dept}: ${count}</li>`)
+                  .join('')}
+              </ul>`;
+          };
+
+          const detailHtml = lastActivity
+            ? data.summary.lastParcel
+              ? `
+                <div style="display: grid; gap: 10px;">
+                  <div style="font-weight: 700; margin-bottom: 8px;">${detailLabel}</div>
+                  <div><strong>Parcel</strong></div>
+                  <div>Weight: ${lastActivity.parcel.weight} kg</div>
+                  <div>Value: €${lastActivity.parcel.value}</div>
+                  <div>Destination: ${lastActivity.parcel.destinationCountry || 'N/A'}</div>
+                  <div>Recipient: ${lastActivity.parcel.recipientName || 'N/A'}</div>
+                  <div><strong>Routing Result</strong></div>
+                  <div>Department: ${lastActivity.decision.department}</div>
+                  <div>Requires Approval: ${lastActivity.decision.requiresApproval ? 'Yes' : 'No'}</div>
+                  <div>Rule: ${lastActivity.decision.appliedRule}</div>
+                  <div>Reason: ${lastActivity.decision.reason}</div>
+                  <div>Timestamp: ${new Date(lastActivity.timestamp).toLocaleString()}</div>
+                </div>`
+              : `
+                <div style="display: grid; gap: 10px;">
+                  <div style="font-weight: 700; margin-bottom: 8px;">${detailLabel}</div>
+                  <div>Batch Timestamp: ${lastActivity.batchTimestamp || 'N/A'}</div>
+                  <div>Total Parcels: ${lastActivity.totalCount}</div>
+                  <div>Success: ${lastActivity.successCount}</div>
+                  <div>Failure: ${lastActivity.failureCount}</div>
+                  <div>Timestamp: ${new Date(lastActivity.timestamp).toLocaleString()}</div>
+                  <div><strong>Department Distribution</strong></div>
+                  ${formatDepartmentCounts(lastActivity.departmentCounts)}
+                  ${lastActivity.parcelDetails ? `
+                    <div><strong>Individual Parcel Details</strong></div>
+                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px; background: #f9f9f9; margin-top: 10px;">
+                      ${lastActivity.parcelDetails.map((parcel, index) => `
+                        <div style="margin-bottom: 15px; padding: 8px; background: white; border-radius: 4px; border-left: 4px solid ${parcel.status === 'routed' ? '#10b981' : parcel.status === 'failed' ? '#ef4444' : '#f59e0b'}">
+                          <div style="font-weight: bold; margin-bottom: 5px;">Parcel ${parcel.parcelIndex}</div>
+                          <div>Status: <span style="color: ${parcel.status === 'routed' ? '#10b981' : parcel.status === 'failed' ? '#ef4444' : '#f59e0b'}">${parcel.status}</span></div>
+                          ${parcel.parcel ? `
+                            <div>Weight: ${parcel.parcel.weight}kg, Value: €${parcel.parcel.value}</div>
+                            <div>Destination: ${parcel.parcel.destinationCountry || 'N/A'}, Recipient: ${parcel.parcel.recipientName || 'N/A'}</div>
+                          ` : ''}
+                          ${parcel.decision ? `
+                            <div>Department: ${parcel.decision.department}, Rule: ${parcel.decision.appliedRule}</div>
+                          ` : ''}
+                          ${parcel.error ? `<div style="color: #ef4444;">Error: ${Array.isArray(parcel.error) ? parcel.error.join(', ') : parcel.error}</div>` : ''}
+                        </div>
+                      `).join('')}
+                    </div>
+                  ` : ''}
+                </div>`
+            : '<em>No orders have been placed yet.</em>';
+
+          orderResultContent.innerHTML = detailHtml;
+          orderResult.classList.add('show', 'success');
+        }
+      } catch (error) {
+        document.getElementById('orderResultContent').innerHTML = `
+          <pre style="color: #ef4444;">Error: ${error.message}</pre>
+        `;
+        document.getElementById('orderResult').classList.add('show', 'error');
+      }
+    }
+
+  async function resetOrderSummary() {
+    const statsContainer = document.getElementById('statsContainer');
+    const orderResult = document.getElementById('orderResult');
+    const orderResultContent = document.getElementById('orderResultContent');
+    const singleResult = document.getElementById('singleResult');
+    const singleResultContent = document.getElementById('singleResultContent');
+    const batchResult = document.getElementById('batchResult');
+    const batchResultContent = document.getElementById('batchResultContent');
+    const uploadResult = document.getElementById('uploadResult');
+    const uploadResultContent = document.getElementById('uploadResultContent');
+
+    try {
+      await fetch(`${API_URL}/orders-summary/reset`, {
+        method: 'POST',
+      });
+    } catch (error) {
+      console.error('Failed to reset order summary on server:', error);
+    }
+
+    statsContainer.innerHTML = `
+      <div class="stat">
+        <div class="stat-value">—</div>
+        <div class="stat-label">Order Requests</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">—</div>
+        <div class="stat-label">Parcels Routed</div>
+      </div>
+    `;
+
+    orderResultContent.innerHTML = `<pre>Order summary cleared. Ready for new data entry.</pre>`;
+    orderResult.classList.add('show', 'success');
+    orderResult.classList.remove('error');
+    
+    // Also clear all routing results
+    singleResultContent.innerHTML = '';
+    singleResult.classList.remove('show', 'success', 'error');
+    
+    batchResultContent.innerHTML = '';
+    batchResult.classList.remove('show', 'success', 'error');
+    
+    uploadResultContent.innerHTML = '';
+    uploadResult.classList.remove('show', 'success', 'error');
+    
+    // Reload the order summary to ensure UI is in sync with server state
+    loadOrderSummary();
+  }
+
+    /**
+     * Handle single parcel form submission
+     */
+    document.getElementById('singleParcelForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const weight = parseFloat(document.getElementById('weight').value);
+      const value = parseFloat(document.getElementById('value').value);
+      const country = document.getElementById('country').value;
+      const recipient = document.getElementById('recipient').value;
+
+      const parcel = {
+        weight,
+        value,
+        ...(country && { destinationCountry: country }),
+        ...(recipient && { recipientName: recipient }),
+      };
+
+      try {
+        const response = await fetch(`${API_URL}/route`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(parcel),
+        });
+
+        const data = await response.json();
+        const resultBox = document.getElementById('singleResult');
+        const resultContent = document.getElementById('singleResultContent');
+
+        if (data.success) {
+          resultContent.innerHTML = `
+            <pre><strong>✓ Routing Successful</strong>
+
+Department: <strong>${data.decision.department}</strong>
+Requires Approval: <strong>${data.decision.requiresApproval ? 'Yes' : 'No'}</strong>
+Reason: ${data.decision.reason}
+Applied Rule: ${data.decision.appliedRule}
+
+Request ID: ${data.requestId}</pre>
+          `;
+          resultBox.classList.add('show', 'success');
+          resultBox.classList.remove('error');
+          loadOrderSummary();
+        } else {
+          resultContent.innerHTML = `<pre style="color: #ef4444;">✗ Error\n${data.error}</pre>`;
+          resultBox.classList.add('show', 'error');
+          resultBox.classList.remove('success');
+        }
+      } catch (error) {
+        const resultBox = document.getElementById('singleResult');
+        const resultContent = document.getElementById('singleResultContent');
+        resultContent.innerHTML = `<pre style="color: #ef4444;">Error: ${error.message}</pre>`;
+        resultBox.classList.add('show', 'error');
+      }
+    });
+
+    /**
+     * Handle batch parcel form submission
+     */
+    document.getElementById('batchParcelForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const batchData = document.getElementById('batchData').value;
+      const lines = batchData.trim().split('\n').filter(line => line.trim());
+
+      const parcels = lines.map(line => {
+        const [weight, value, country, name] = line.split(',').map(s => s.trim());
+        return {
+          weight: parseFloat(weight),
+          value: parseFloat(value),
+          ...(country && { destinationCountry: country }),
+          ...(name && { recipientName: name }),
+        };
+      });
+
+      if (parcels.length === 0) {
+        alert('Please enter at least one parcel');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/route-batch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parcels }),
+        });
+
+        const data = await response.json();
+        const resultBox = document.getElementById('batchResult');
+        const resultContent = document.getElementById('batchResultContent');
+
+        if (data.success) {
+          const { result } = data;
+          const departments = Object.entries(result.departmentCounts)
+            .map(([dept, count]) => `  ${dept}: ${count}`)
+            .join('\n');
+
+          resultContent.innerHTML = `<pre><strong>✓ Batch Processed Successfully</strong>
+
+Total Parcels: ${result.totalCount}
+Successful: ${result.successCount}
+Failed: ${result.failureCount}
+Processing Time: ${result.processingTimeMs}ms
+
+Department Distribution:
+${departments}
+
+Request ID: ${data.requestId}</pre>`;
+          resultBox.classList.add('show', 'success');
+          resultBox.classList.remove('error');
+          loadOrderSummary();
+        } else {
+          resultContent.innerHTML = `<pre style="color: #ef4444;">✗ Error\n${data.error}</pre>`;
+          resultBox.classList.add('show', 'error');
+        }
+      } catch (error) {
+        const resultBox = document.getElementById('batchResult');
+        const resultContent = document.getElementById('batchResultContent');
+        resultContent.innerHTML = `<pre style="color: #ef4444;">Error: ${error.message}</pre>`;
+        resultBox.classList.add('show', 'error');
+      }
+    });
+
+    /**
+     * Handle file upload form submission
+     */
+    document.getElementById('fileUploadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const fileInput = document.getElementById('uploadFile');
+      const format = document.getElementById('uploadFormat').value;
+      const resultBox = document.getElementById('uploadResult');
+      const resultContent = document.getElementById('uploadResultContent');
+
+      if (!fileInput.files.length) {
+        resultContent.innerHTML = `<pre style="color: #ef4444;">Please select a JSON or XML file to upload.</pre>`;
+        resultBox.classList.add('show', 'error');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+
+      try {
+        const response = await fetch(`${API_URL}/upload?format=${format}`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          const { result } = data;
+          const departments = Object.entries(result.departmentCounts)
+            .map(([dept, count]) => `  ${dept}: ${count}`)
+            .join('\n');
+
+          resultContent.innerHTML = `<pre><strong>✓ File uploaded successfully</strong>
+
+Total Parcels: ${result.totalCount}
+Successful: ${result.successCount}
+Failed: ${result.failureCount}
+Processing Time: ${result.processingTimeMs}ms
+
+Department Distribution:
+${departments}
+
+Request ID: ${data.requestId}</pre>`;
+          resultBox.classList.add('show', 'success');
+          resultBox.classList.remove('error');
+          loadOrderSummary();
+        } else {
+          resultContent.innerHTML = `<pre style="color: #ef4444;">✗ Error\n${data.error}</pre>`;
+          resultBox.classList.add('show', 'error');
+          resultBox.classList.remove('success');
+        }
+      } catch (error) {
+        resultContent.innerHTML = `<pre style="color: #ef4444;">Error: ${error.message}</pre>`;
+        resultBox.classList.add('show', 'error');
+      }
+    });
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      loadRules();
+      loadOrderSummary();
+
+      document.getElementById('resetSummaryBtn').addEventListener('click', resetOrderSummary);
+    });
+  </script>
+</body>
+</html>
