@@ -110,14 +110,17 @@ class Server {
     this.setupRoutes();
     this.setupErrorHandling();
 
-    this.server = this.app.listen(this.port, () => {
-      logger.info('🚀 Server started', {
-        port: this.port,
-        environment: this.environment,
-        timestamp: new Date().toISOString(),
-      });
+    // Only bind to a port when running directly (not when imported as a module,
+    // e.g. by Vercel serverless functions where the HTTP layer is managed externally)
+    if (!process.env.VERCEL) {
+      this.server = this.app.listen(this.port, () => {
+        logger.info('🚀 Server started', {
+          port: this.port,
+          environment: this.environment,
+          timestamp: new Date().toISOString(),
+        });
 
-      console.log(`
+        console.log(`
 ╔════════════════════════════════════════════════════════╗
 ║   Parcel Routing System                                ║
 ║   Server running on http://localhost:${this.port}              ║
@@ -126,13 +129,14 @@ class Server {
 ║   🔌 API Docs: http://localhost:${this.port}/api     ║
 ║   📈 Health Check: http://localhost:${this.port}/api/health   ║
 ╚════════════════════════════════════════════════════════╝
-      `);
-    });
+        `);
+      });
 
-    this.server.on('error', (error) => {
-      logger.error('Server error: %s', error.message);
-      process.exit(1);
-    });
+      this.server.on('error', (error) => {
+        logger.error('Server error: %s', error.message);
+        process.exit(1);
+      });
+    }
   }
 
   /**

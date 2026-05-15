@@ -213,54 +213,65 @@ router.get('/rules', (req, res) => {
  * }
  */
 router.post('/route', (req, res) => {
-  try {
-    // Validate input
-    const validation = validateSingleParcel(req.body);
-    if (!validation.valid) {
-      return res.status(400).json({
-        success: false,
-        error: validation.error,
-      });
+    try {
+        // Validate input
+        const validation = validateSingleParcel(req.body);
+        if (!validation.valid) {
+            return res.status(400).json({
+                success: false,
+                error: validation.error,
+            });
+        }
+
+        // Sanitize input
+        const parcel = sanitizeParcel(validation.value);
+
+        // Route the parcel
+        const decision = routingEngine.routeParcel(parcel);
+
+        if (!decision.success) {
+            return res.status(400).json({
+                success: false,
+                error: decision.error,
+            });
+        }
+
+        orderSummary.totalRequests += 1;
+        orderSummary.totalParcels += 1;
+        orderSummary.departmentCounts[decision.department] =
+            (orderSummary.departmentCounts[decision.department] || 0) + 1;
+        orderSummary.lastParcel = {
+            parcel,
+            decision,
+            timestamp: new Date().toISOString(),
+        };
+        orderSummary.lastBatch = null;
+        orderSummary.lastUpdated = orderSummary.lastParcel.timestamp;
+
+        // Log successful single parcel routing (similar to batch logging)
+        logger.info('Single parcel routed', {
+            weight: parcel.weight,
+            value: parcel.value,
+            destinationCountry: parcel.destinationCountry,
+            recipientName: parcel.recipientName,
+            department: decision.department,
+            requiresApproval: decision.requiresApproval,
+            appliedRule: decision.appliedRule
+        });
+
+        res.json({
+            success: true,
+            parcel,
+            decision,
+            requestId: uuidv4(),
+        });
+    } catch (error) {
+        logger.error('Routing failed: %s', error.message);
+        res.status(500).json({
+            success: false,
+            error: 'Routing operation failed',
+        });
     }
-
-    // Sanitize input
-    const parcel = sanitizeParcel(validation.value);
-
-    // Route the parcel
-    const decision = routingEngine.routeParcel(parcel);
-
-    if (!decision.success) {
-      return res.status(400).json({
-        success: false,
-        error: decision.error,
-      });
-    }
-
-    orderSummary.totalRequests += 1;
-    orderSummary.totalParcels += 1;
-    orderSummary.departmentCounts[decision.department] =
-      (orderSummary.departmentCounts[decision.department] || 0) + 1;
-    orderSummary.lastParcel = {
-      parcel,
-      decision,
-      timestamp: new Date().toISOString(),
-    };
-    orderSummary.lastBatch = null;
-    orderSummary.lastUpdated = orderSummary.lastParcel.timestamp;
-
-    res.json({
-      success: true,
-      parcel,
-      decision,
-      requestId: uuidv4(),
-    });
-  } catch (error) {
-    logger.error('Routing failed: %s', error.message);
-    res.status(500).json({
-      success: false,
-      error: 'Routing operation failed',
-    });
-  }
 });
 
 /**
